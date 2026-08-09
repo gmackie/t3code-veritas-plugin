@@ -1,7 +1,8 @@
-import { buildSurfaceModel, type VeritasSnapshot } from "./veritas.ts";
+import { buildReviewWorkflow, buildSurfaceModel, type VeritasSnapshot } from "./veritas.ts";
 
-export function createRpcHandler<T extends { activeRuns?: unknown; recentRuns?: unknown; stationSummary?: unknown }>(coordinator: { snapshot: T | null; refresh(): Promise<T> }) {
-  return async (method: string, payload?: { navigationId?: string; panelId?: string; actionId?: string }) => {
+export function createRpcHandler<T extends { activeRuns?: unknown; recentRuns?: unknown; stationSummary?: unknown }>(coordinator: { snapshot: T | null; refresh(): Promise<T>; workflowState?: { approved: boolean }; saveWorkflowState?: () => Promise<void> }) {
+  const workflowState = coordinator.workflowState ?? { approved: false };
+  return async (method: string, payload?: { navigationId?: string; panelId?: string; actionId?: string; workflowId?: string; input?: unknown }) => {
     const snapshot = () => coordinator.snapshot ?? coordinator.refresh();
     switch (method) {
       case "verification.status":
@@ -20,6 +21,19 @@ export function createRpcHandler<T extends { activeRuns?: unknown; recentRuns?: 
         const value = (await snapshot()) as unknown as VeritasSnapshot;
         return { ok: true as const, result: buildSurfaceModel(value, "veritas.overview") };
       }
+      case "workflow.get": {
+        const value = (await snapshot()) as unknown as VeritasSnapshot;
+        return { ok: true as const, result: buildReviewWorkflow(value, workflowState) };
+      }
+      case "action.execute":
+        if (payload?.actionId === "approve") {
+          workflowState.approved = true;
+          await coordinator.saveWorkflowState?.();
+          return { ok: true as const, result: { status: "accepted" as const, message: "Verification run approved." } };
+        }
+        return payload?.actionId === "veritas.trigger-run"
+          ? { ok: true as const, result: { status: "accepted" as const, message: "Verification run queued by Veritas." } }
+          : { ok: false as const, error: `unsupported Veritas action: ${String(payload?.actionId)}` };
       case "panel.get": {
         const value = (await snapshot()) as unknown as VeritasSnapshot;
         if (payload?.panelId !== "veritas.thread-run") return { ok: false as const, error: `unsupported Veritas panel: ${String(payload?.panelId)}` };
@@ -41,10 +55,6 @@ export function createRpcHandler<T extends { activeRuns?: unknown; recentRuns?: 
           },
         };
       }
-      case "action.execute":
-        return payload?.actionId === "veritas.trigger-run"
-          ? { ok: true as const, result: { status: "accepted" as const, message: "Verification run queued by Veritas." } }
-          : { ok: false as const, error: `unsupported Veritas action: ${String(payload?.actionId)}` };
       default:
         return { ok: false as const, error: `unsupported Veritas RPC method: ${method}` };
     }

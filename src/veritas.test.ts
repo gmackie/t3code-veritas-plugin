@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildCockpitViewModel, buildSurfaceModel, createPollingCoordinator, createVeritasClient, normalizeVeritasSnapshot } from "./veritas.ts";
+import { buildCockpitViewModel, buildReviewWorkflow, buildSurfaceModel, createPollingCoordinator, createVeritasClient, normalizeVeritasSnapshot } from "./veritas.ts";
 
 describe("Veritas adapter", () => {
   test("normalizes CLI status and runs", () => {
@@ -65,5 +65,23 @@ describe("Veritas adapter", () => {
       expect.objectContaining({ id: "stations", value: "2/3" }),
       expect.objectContaining({ id: "runs" }),
     ]));
+  });
+
+  test("builds the canonical evidence review workflow", () => {
+    const workflow = buildReviewWorkflow({
+      stationSummary: { online: 1, total: 2 },
+      projects: [],
+      activeRuns: [],
+      recentRuns: [{ id: "r1", status: "failed", targetType: "simulator", stationName: null, evidenceCount: 3 }],
+    });
+    expect(workflow.currentStage).toBe("review");
+    expect(workflow.steps.find((step) => step.stage === "review")?.state).toBe("active");
+    expect(workflow.evidence?.[0]?.status).toBe("negative");
+  });
+
+  test("moves the evidence workflow to execution after approval", () => {
+    const workflow = buildReviewWorkflow({ stationSummary: { online: 2, total: 2 }, projects: [], activeRuns: [], recentRuns: [] }, { approved: true });
+    expect(workflow.currentStage).toBe("execute");
+    expect(workflow.steps.find((step) => step.stage === "approve")?.state).toBe("completed");
   });
 });

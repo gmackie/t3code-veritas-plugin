@@ -19,4 +19,18 @@ describe("Veritas cockpit RPC", () => {
     await expect(handler("panel.get", { panelId: "veritas.thread-run" })).resolves.toMatchObject({ ok: true, result: { content: { kind: "verification", status: "passed" } } });
     await expect(handler("action.execute", { actionId: "veritas.trigger-run" })).resolves.toEqual({ ok: true, result: { status: "accepted", message: "Verification run queued by Veritas." } });
   });
+
+  test("serves and approves the evidence review workflow", async () => {
+    let saved = false;
+    const handler = createRpcHandler({
+      snapshot: { projects: [], activeRuns: [], recentRuns: [], stationSummary: { online: 1, total: 1 } },
+      refresh: async () => ({ projects: [], activeRuns: [], recentRuns: [], stationSummary: { online: 1, total: 1 } }),
+      workflowState: { approved: false },
+      saveWorkflowState: async () => { saved = true; },
+    });
+    await expect(handler("workflow.get", { workflowId: "veritas.evidence-review" })).resolves.toMatchObject({ ok: true, result: { currentStage: "approve" } });
+    await expect(handler("action.execute", { actionId: "approve", input: { workflowId: "veritas.evidence-review" } })).resolves.toMatchObject({ ok: true, result: { status: "accepted" } });
+    expect(saved).toBe(true);
+    await expect(handler("workflow.get", { workflowId: "veritas.evidence-review" })).resolves.toMatchObject({ ok: true, result: { currentStage: "execute" } });
+  });
 });

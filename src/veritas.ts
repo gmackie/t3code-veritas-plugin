@@ -10,6 +10,42 @@ export type SurfaceCard =
   | { kind: "metric"; id: string; title: string; value: string; detail?: string; status?: "neutral" | "positive" | "warning" | "negative" }
   | { kind: "list"; id: string; title: string; items: readonly { id: string; title: string; detail?: string; status?: "neutral" | "positive" | "warning" | "negative" }[] };
 export type SurfaceModel = { pluginId: string; navigationId: string; title: string; refreshedAt: string; cards: readonly SurfaceCard[] };
+export type ReviewWorkflowModel = {
+  readonly pluginId: string;
+  readonly workflowId: string;
+  readonly title: string;
+  readonly currentStage: "inspect" | "context" | "propose" | "review" | "approve" | "execute" | "verify" | "respond";
+  readonly refreshedAt: string;
+  readonly steps: readonly { id: string; stage: ReviewWorkflowModel["currentStage"]; title: string; state: "pending" | "active" | "completed" | "blocked" | "failed"; detail?: string }[];
+  readonly evidence?: readonly { id: string; title: string; kind: "check" | "artifact" | "diff" | "log" | "link"; status: "neutral" | "positive" | "warning" | "negative"; detail?: string }[];
+  readonly actions?: readonly { id: string; title: string; tone?: "primary" | "secondary" | "destructive" }[];
+};
+
+export function buildReviewWorkflow(snapshot: VeritasSnapshot, state: { readonly approved?: boolean } = {}): ReviewWorkflowModel {
+  const failures = snapshot.recentRuns.filter((run) => ["failed", "error", "inconclusive"].includes(run.status)).length;
+  const hasEvidence = snapshot.recentRuns.some((run) => run.evidenceCount > 0);
+  const checksHealthy = failures === 0 && snapshot.stationSummary.online === snapshot.stationSummary.total;
+  const steps = [
+    { id: "inspect", stage: "inspect" as const, title: "Inspect verification state", state: "completed" as const },
+    { id: "context", stage: "context" as const, title: "Collect run and station context", state: "completed" as const, detail: `${snapshot.activeRuns.length} active runs · ${snapshot.recentRuns.length} recent runs` },
+    { id: "propose", stage: "propose" as const, title: "Propose verification response", state: "completed" as const },
+    { id: "review", stage: "review" as const, title: "Review evidence and failures", state: state.approved ? "completed" as const : "active" as const },
+    { id: "approve", stage: "approve" as const, title: "Approve verification run", state: state.approved ? "completed" as const : "pending" as const },
+    { id: "execute", stage: "execute" as const, title: "Execute verification run", state: state.approved ? "active" as const : "pending" as const },
+    { id: "verify", stage: "verify" as const, title: "Verify returned evidence", state: state.approved ? "pending" as const : checksHealthy ? "completed" as const : "active" as const, detail: `${failures} failing runs · ${snapshot.stationSummary.online}/${snapshot.stationSummary.total} stations online` },
+    { id: "respond", stage: "respond" as const, title: "Prepare verification response", state: "pending" as const },
+  ];
+  return {
+    pluginId: "com.t3code.veritas",
+    workflowId: "veritas.evidence-review",
+    title: "Evidence review",
+    currentStage: state.approved ? "execute" : failures > 0 || !checksHealthy ? "review" : "approve",
+    refreshedAt: new Date().toISOString(),
+    steps,
+    evidence: [{ id: "verification-health", title: "Verification health", kind: "check", status: checksHealthy && hasEvidence ? "positive" : failures > 0 ? "negative" : "warning", detail: `${snapshot.recentRuns.length} recent runs with ${snapshot.recentRuns.reduce((total, run) => total + run.evidenceCount, 0)} evidence records` }],
+    actions: state.approved ? [] : [{ id: "approve", title: "Approve verification run", tone: "primary" }],
+  };
+}
 
 async function get(input: { endpoint: string; token: string; fetchImpl: FetchLike }, path: string): Promise<any> {
   const response = await input.fetchImpl(`${input.endpoint.replace(/\/$/, "")}${path}`, { headers: { authorization: `Bearer ${input.token}` } });

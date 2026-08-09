@@ -23,6 +23,7 @@
       { "id": "veritas.project-summary", "title": "Verification summary", "surface": "project" },
       { "id": "veritas.thread-run", "title": "Thread verification", "surface": "thread.sidePanel" }
     ],
+    "workflows": [{ "id": "veritas.evidence-review", "title": "Evidence review", "surface": "thread.main" }],
     "settings": [
       { "id": "veritas.endpoint", "title": "Veritas endpoint", "scope": "server", "field": { "kind": "text", "default": "https://veritas.forgegraf.com" } },
       { "id": "veritas.token", "title": "Veritas token", "scope": "server", "field": { "kind": "text", "secret": true } },
