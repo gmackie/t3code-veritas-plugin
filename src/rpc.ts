@@ -1,3 +1,5 @@
+import { buildSurfaceModel, type VeritasSnapshot } from "./veritas.ts";
+
 export function createRpcHandler<T extends { activeRuns?: unknown; recentRuns?: unknown; stationSummary?: unknown }>(coordinator: { snapshot: T | null; refresh(): Promise<T> }) {
   return async (method: string) => {
     const snapshot = () => coordinator.snapshot ?? coordinator.refresh();
@@ -14,6 +16,10 @@ export function createRpcHandler<T extends { activeRuns?: unknown; recentRuns?: 
         return { ok: true as const, result: (await snapshot()).recentRuns ?? [] };
       case "targets.summary":
         return { ok: true as const, result: (await snapshot()).stationSummary ?? { online: 0, total: 0 } };
+      case "surface.get": {
+        const value = (await snapshot()) as VeritasSnapshot;
+        return { ok: true as const, result: buildSurfaceModel(value, "veritas.overview") };
+      }
       default:
         return { ok: false as const, error: `unsupported Veritas RPC method: ${method}` };
     }

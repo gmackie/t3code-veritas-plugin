@@ -8,4 +8,9 @@ describe("Veritas cockpit RPC", () => {
     expect(await handler("runs.active")).toEqual({ ok: true, result: [{ id: "r1" }] });
     expect(await handler("targets.summary")).toEqual({ ok: true, result: { online: 1, total: 1 } });
   });
+
+  test("serves the native verification surface", async () => {
+    const handler = createRpcHandler({ snapshot: { projects: [], activeRuns: [], recentRuns: [], stationSummary: { online: 1, total: 1 } }, refresh: async () => ({}) });
+    await expect(handler("surface.get")).resolves.toMatchObject({ ok: true, result: { pluginId: "com.t3code.veritas" } });
+  });
 });
