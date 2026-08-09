@@ -1,1 +1,46 @@
-{"schemaVersion":1,"id":"com.t3code.veritas","displayName":"Veritas verification runs","version":"0.1.0","runtime":{"kind":"managed-app","command":["veritas-t3-plugin"],"restart":"on-failure"},"contributes":{"panels":[{"id":"veritas.runs","title":"Verification runs","surface":"project"},{"id":"veritas.active","title":"Active verification","surface":"thread.sidePanel"}],"settings":[{"id":"veritas.endpoint","title":"Veritas endpoint","scope":"server","field":{"kind":"text","default":"https://veritas.forgegraf.com"}},{"id":"veritas.token","title":"Veritas token","scope":"server","field":{"kind":"text","secret":true}},{"id":"veritas.polling-seconds","title":"Refresh interval","scope":"server","field":{"kind":"number","default":60,"min":15,"max":3600,"step":15}}],"settingsPanels":[{"id":"veritas.connection","title":"Veritas","description":"Observe verification runs and active test execution.","settingIds":["veritas.endpoint","veritas.token","veritas.polling-seconds"]}],"hooks":["turn.settled","runtime.error"]},"capabilities":[{"kind":"secrets.read","names":["VERITAS_TOKEN"]},{"kind":"network.connect","hosts":["veritas.forgegraf.com"]},{"kind":"ui.embed","surfaces":["project","thread.sidePanel"]}]}
+{
+  "schemaVersion": 1,
+  "id": "com.t3code.veritas",
+  "displayName": "Veritas verification cockpit",
+  "version": "0.2.0",
+  "runtime": { "kind": "managed-app", "command": ["veritas-t3-plugin"], "restart": "on-failure" },
+  "contributes": {
+    "navigation": [
+      { "id": "veritas.overview", "title": "Overview", "path": "/" },
+      { "id": "veritas.runs", "title": "Runs", "path": "/runs" },
+      { "id": "veritas.suites", "title": "Suites", "path": "/suites" },
+      { "id": "veritas.targets", "title": "Targets", "path": "/targets" },
+      { "id": "veritas.evidence", "title": "Evidence", "path": "/evidence" },
+      { "id": "veritas.failures", "title": "Failures", "path": "/failures" },
+      { "id": "veritas.provenance", "title": "Provenance", "path": "/provenance" }
+    ],
+    "commands": [
+      { "id": "veritas.refresh", "title": "Refresh verification status" },
+      { "id": "veritas.open-run", "title": "Open verification run" },
+      { "id": "veritas.trigger-run", "title": "Start verification run" }
+    ],
+    "panels": [
+      { "id": "veritas.project-summary", "title": "Verification summary", "surface": "project" },
+      { "id": "veritas.thread-run", "title": "Thread verification", "surface": "thread.sidePanel" }
+    ],
+    "settings": [
+      { "id": "veritas.endpoint", "title": "Veritas endpoint", "scope": "server", "field": { "kind": "text", "default": "https://veritas.forgegraf.com" } },
+      { "id": "veritas.token", "title": "Veritas token", "scope": "server", "field": { "kind": "text", "secret": true } },
+      { "id": "veritas.project", "title": "Default verification project", "scope": "project", "field": { "kind": "text", "placeholder": "project id" } },
+      { "id": "veritas.polling-seconds", "title": "Refresh interval", "scope": "server", "field": { "kind": "number", "default": 60, "min": 15, "max": 3600, "step": 15 } },
+      { "id": "veritas.auto-link", "title": "Automatically link runs to threads", "scope": "server", "field": { "kind": "boolean", "default": true } }
+    ],
+    "settingsPanels": [
+      { "id": "veritas.connection", "title": "Veritas", "description": "Configure verification projects, targets, polling, and thread linking.", "settingIds": ["veritas.endpoint", "veritas.token", "veritas.project", "veritas.polling-seconds", "veritas.auto-link"] }
+    ],
+    "hooks": ["turn.settled", "thread.completed", "runtime.error"]
+  },
+  "capabilities": [
+    { "kind": "secrets.read", "names": ["VERITAS_TOKEN"] },
+    { "kind": "network.connect", "hosts": ["veritas.forgegraf.com"] },
+    { "kind": "filesystem.read", "roots": ["project.root"] },
+    { "kind": "ui.embed", "surfaces": ["project", "thread.sidePanel", "thread.main"] },
+    { "kind": "threads.read", "projectIds": [] },
+    { "kind": "events.read", "eventTypes": ["turn.settled", "thread.completed", "runtime.error"], "projectIds": [] }
+  ]
+}

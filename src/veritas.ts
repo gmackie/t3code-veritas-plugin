@@ -1,5 +1,6 @@
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
-export type VeritasSnapshot = { activeRuns: readonly { id: string; status: string }[]; recentRuns: readonly { id: string; status: string }[] };
+export type VeritasRun = { id: string; status: string; targetType: string | null; stationName: string | null; evidenceCount: number };
+export type VeritasSnapshot = { stationSummary: { online: number; total: number }; projects: readonly { id: string; name: string }[]; activeRuns: readonly VeritasRun[]; recentRuns: readonly VeritasRun[] };
 
 async function get(input: { endpoint: string; token: string; fetchImpl: FetchLike }, path: string): Promise<any> {
   const response = await input.fetchImpl(`${input.endpoint.replace(/\/$/, "")}${path}`, { headers: { authorization: `Bearer ${input.token}` } });
@@ -7,8 +8,8 @@ async function get(input: { endpoint: string; token: string; fetchImpl: FetchLik
   return response.json();
 }
 
-function runs(value: unknown): { id: string; status: string }[] { return Array.isArray(value) ? value.map((run: any) => ({ id: String(run.id), status: String(run.status ?? "unknown") })) : []; }
-export function normalizeVeritasSnapshot(value: any): VeritasSnapshot { return { activeRuns: runs(value?.activeRuns), recentRuns: runs(value?.runs) }; }
+function runs(value: unknown): VeritasRun[] { return Array.isArray(value) ? value.map((run: any) => ({ id: String(run.id), status: run.status === "pass" ? "passed" : String(run.status ?? "unknown"), targetType: typeof run.targetType === "string" ? run.targetType : null, stationName: typeof run.stationName === "string" ? run.stationName : null, evidenceCount: Array.isArray(run.evidence) ? run.evidence.length : 0 })) : []; }
+export function normalizeVeritasSnapshot(value: any): VeritasSnapshot { return { stationSummary: { online: Number(value?.stations?.online ?? 0), total: Number(value?.stations?.total ?? 0) }, projects: Array.isArray(value?.projects) ? value.projects.map((project: any) => ({ id: String(project.id), name: String(project.name ?? project.id) })) : [], activeRuns: runs(value?.activeRuns), recentRuns: runs(value?.runs) }; }
 export function createVeritasClient(input: { endpoint: string; token: string; fetchImpl?: FetchLike }) {
   const transport = { ...input, fetchImpl: input.fetchImpl ?? fetch };
   return { async snapshot() { return normalizeVeritasSnapshot({ ...(await get(transport, "/api/cli/status")), ...(await get(transport, "/api/cli/runs?limit=20")) }); } };

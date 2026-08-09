@@ -4,8 +4,10 @@ import { createPollingCoordinator, createVeritasClient, normalizeVeritasSnapshot
 describe("Veritas adapter", () => {
   test("normalizes CLI status and runs", () => {
     expect(normalizeVeritasSnapshot({ activeRuns: [{ id: "r1", status: "running" }], runs: [{ id: "r0", status: "passed" }] })).toEqual({
-      activeRuns: [{ id: "r1", status: "running" }],
-      recentRuns: [{ id: "r0", status: "passed" }],
+      stationSummary: { online: 0, total: 0 },
+      projects: [],
+      activeRuns: [{ id: "r1", status: "running", targetType: null, stationName: null, evidenceCount: 0 }],
+      recentRuns: [{ id: "r0", status: "passed", targetType: null, stationName: null, evidenceCount: 0 }],
     });
   });
 
@@ -23,5 +25,19 @@ describe("Veritas adapter", () => {
     const coordinator = createPollingCoordinator({ refresh: async () => ({ activeRuns: [], recentRuns: [] }) });
     await coordinator.refresh();
     expect(coordinator.snapshot).toEqual({ activeRuns: [], recentRuns: [] });
+  });
+
+  test("normalizes the full cockpit summary across software and physical targets", () => {
+    expect(normalizeVeritasSnapshot({
+      stations: { online: 2, total: 3 },
+      projects: [{ id: "p1", name: "Firmware" }],
+      activeRuns: [{ id: "r1", status: "running", targetType: "hardware-rig", stationName: "Bench A" }],
+      runs: [{ id: "r0", status: "pass", targetType: "simulator", suiteName: "Smoke", evidence: [{ id: "e1" }] }],
+    })).toEqual({
+      stationSummary: { online: 2, total: 3 },
+      projects: [{ id: "p1", name: "Firmware" }],
+      activeRuns: [{ id: "r1", status: "running", targetType: "hardware-rig", stationName: "Bench A", evidenceCount: 0 }],
+      recentRuns: [{ id: "r0", status: "passed", targetType: "simulator", stationName: null, evidenceCount: 1 }],
+    });
   });
 });
