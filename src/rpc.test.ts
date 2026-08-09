@@ -13,4 +13,10 @@ describe("Veritas cockpit RPC", () => {
     const handler = createRpcHandler({ snapshot: { projects: [], activeRuns: [], recentRuns: [], stationSummary: { online: 1, total: 1 } }, refresh: async () => ({}) });
     await expect(handler("surface.get")).resolves.toMatchObject({ ok: true, result: { pluginId: "com.t3code.veritas" } });
   });
+
+  test("serves the verification panel and run action", async () => {
+    const handler = createRpcHandler({ snapshot: { projects: [], activeRuns: [], recentRuns: [{ id: "r1", status: "passed" }], stationSummary: { online: 1, total: 1 } }, refresh: async () => ({}) });
+    await expect(handler("panel.get", { panelId: "veritas.thread-run" })).resolves.toMatchObject({ ok: true, result: { content: { kind: "verification", status: "passed" } } });
+    await expect(handler("action.execute", { actionId: "veritas.trigger-run" })).resolves.toEqual({ ok: true, result: { status: "accepted", message: "Verification run queued by Veritas." } });
+  });
 });
