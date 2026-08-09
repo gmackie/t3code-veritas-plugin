@@ -1,8 +1,12 @@
 import { createRpcHandler } from "./rpc.ts";
-import type { VeritasSnapshot } from "./veritas.ts";
+import { createVeritasClient, type VeritasSnapshot } from "./veritas.ts";
 
-const snapshot = JSON.parse(process.env.T3_PLUGIN_SNAPSHOT ?? '{"stationSummary":{"online":0,"total":0},"projects":[],"activeRuns":[],"recentRuns":[]}') as VeritasSnapshot;
-const handler = createRpcHandler({ snapshot, refresh: async () => snapshot });
+let snapshot = JSON.parse(process.env.T3_PLUGIN_SNAPSHOT ?? '{"stationSummary":{"online":0,"total":0},"projects":[],"activeRuns":[],"recentRuns":[]}') as VeritasSnapshot;
+const client = process.env.T3_PLUGIN_ENDPOINT && process.env.T3_PLUGIN_TOKEN
+  ? createVeritasClient({ endpoint: process.env.T3_PLUGIN_ENDPOINT, token: process.env.T3_PLUGIN_TOKEN })
+  : null;
+const refresh = async () => { if (client) snapshot = await client.snapshot(); return snapshot; };
+const handler = createRpcHandler({ get snapshot() { return snapshot; }, refresh });
 let buffer = "";
 process.stdin.setEncoding("utf8");
 process.stdin.on("data", (chunk) => {
