@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createPollingCoordinator, createVeritasClient, normalizeVeritasSnapshot } from "./veritas.ts";
+import { buildCockpitViewModel, createPollingCoordinator, createVeritasClient, normalizeVeritasSnapshot } from "./veritas.ts";
 
 describe("Veritas adapter", () => {
   test("normalizes CLI status and runs", () => {
@@ -39,5 +39,17 @@ describe("Veritas adapter", () => {
       activeRuns: [{ id: "r1", status: "running", targetType: "hardware-rig", stationName: "Bench A", evidenceCount: 0 }],
       recentRuns: [{ id: "r0", status: "passed", targetType: "simulator", stationName: null, evidenceCount: 1 }],
     });
+  });
+
+  test("builds owned cockpit navigation and software/hardware tabs", () => {
+    const view = buildCockpitViewModel({
+      stationSummary: { online: 2, total: 3 },
+      projects: [{ id: "p1", name: "Firmware" }],
+      activeRuns: [{ id: "r1", status: "running", targetType: "hardware-rig", stationName: "Bench A", evidenceCount: 0 }],
+      recentRuns: [{ id: "r0", status: "passed", targetType: "simulator", stationName: null, evidenceCount: 2 }],
+    });
+    expect(view.navigation.map((item) => item.id)).toEqual(["overview", "runs", "suites", "targets", "evidence", "failures", "provenance"]);
+    expect(view.overview).toEqual({ activeRuns: 1, recentFailures: 0, stationsOnline: 2, stationsTotal: 3, evidenceFresh: 2 });
+    expect(view.targetTabs).toEqual([{ id: "software", title: "Software", runCount: 1 }, { id: "hardware", title: "Hardware", runCount: 1 }]);
   });
 });
