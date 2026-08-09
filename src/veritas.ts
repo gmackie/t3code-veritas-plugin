@@ -6,6 +6,10 @@ export type CockpitViewModel = {
   overview: { activeRuns: number; recentFailures: number; stationsOnline: number; stationsTotal: number; evidenceFresh: number };
   targetTabs: readonly { id: "software" | "hardware"; title: string; runCount: number }[];
 };
+export type SurfaceCard =
+  | { kind: "metric"; id: string; title: string; value: string; detail?: string; status?: "neutral" | "positive" | "warning" | "negative" }
+  | { kind: "list"; id: string; title: string; items: readonly { id: string; title: string; detail?: string; status?: "neutral" | "positive" | "warning" | "negative" }[] };
+export type SurfaceModel = { pluginId: string; navigationId: string; title: string; refreshedAt: string; cards: readonly SurfaceCard[] };
 
 async function get(input: { endpoint: string; token: string; fetchImpl: FetchLike }, path: string): Promise<any> {
   const response = await input.fetchImpl(`${input.endpoint.replace(/\/$/, "")}${path}`, { headers: { authorization: `Bearer ${input.token}` } });
@@ -31,6 +35,21 @@ export function buildCockpitViewModel(snapshot: VeritasSnapshot): CockpitViewMod
     targetTabs: [
       { id: "software", title: "Software", runCount: softwareRuns },
       { id: "hardware", title: "Hardware", runCount: hardwareRuns },
+    ],
+  };
+}
+export function buildSurfaceModel(snapshot: VeritasSnapshot, navigationId = "veritas.overview"): SurfaceModel {
+  const view = buildCockpitViewModel(snapshot);
+  return {
+    pluginId: "com.t3code.veritas",
+    navigationId,
+    title: "Verification cockpit",
+    refreshedAt: new Date().toISOString(),
+    cards: [
+      { kind: "metric", id: "active-runs", title: "Active runs", value: `${view.overview.activeRuns}`, status: view.overview.activeRuns === 0 ? "positive" : "warning" },
+      { kind: "metric", id: "stations", title: "Stations online", value: `${view.overview.stationsOnline}/${view.overview.stationsTotal}`, status: view.overview.stationsOnline === view.overview.stationsTotal ? "positive" : "warning" },
+      { kind: "metric", id: "evidence", title: "Recent evidence", value: `${view.overview.evidenceFresh}` },
+      { kind: "list", id: "runs", title: "Recent verification runs", items: [...snapshot.activeRuns, ...snapshot.recentRuns].slice(0, 10).map((run) => ({ id: run.id, title: run.id, detail: [run.status, run.targetType ?? "target unknown", run.stationName ?? "station unknown"].join(" · "), status: ["failed", "error", "inconclusive"].includes(run.status) ? "negative" as const : run.status === "passed" ? "positive" as const : "warning" as const })) },
     ],
   };
 }

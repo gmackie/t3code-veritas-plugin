@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildCockpitViewModel, createPollingCoordinator, createVeritasClient, normalizeVeritasSnapshot } from "./veritas.ts";
+import { buildCockpitViewModel, buildSurfaceModel, createPollingCoordinator, createVeritasClient, normalizeVeritasSnapshot } from "./veritas.ts";
 
 describe("Veritas adapter", () => {
   test("normalizes CLI status and runs", () => {
@@ -51,5 +51,19 @@ describe("Veritas adapter", () => {
     expect(view.navigation.map((item) => item.id)).toEqual(["overview", "runs", "suites", "targets", "evidence", "failures", "provenance"]);
     expect(view.overview).toEqual({ activeRuns: 1, recentFailures: 0, stationsOnline: 2, stationsTotal: 3, evidenceFresh: 2 });
     expect(view.targetTabs).toEqual([{ id: "software", title: "Software", runCount: 1 }, { id: "hardware", title: "Hardware", runCount: 1 }]);
+  });
+
+  test("builds native T3 verification cards across software and hardware runs", () => {
+    const surface = buildSurfaceModel({
+      stationSummary: { online: 2, total: 3 },
+      projects: [],
+      activeRuns: [{ id: "r1", status: "running", targetType: "hardware-rig", stationName: "Bench A", evidenceCount: 0 }],
+      recentRuns: [{ id: "r0", status: "passed", targetType: "simulator", stationName: null, evidenceCount: 2 }],
+    });
+    expect(surface.pluginId).toBe("com.t3code.veritas");
+    expect(surface.cards).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: "stations", value: "2/3" }),
+      expect.objectContaining({ id: "runs" }),
+    ]));
   });
 });
