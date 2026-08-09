@@ -1,6 +1,6 @@
 import { buildReviewWorkflow, buildSurfaceModel, type VeritasSnapshot } from "./veritas.ts";
 
-export function createRpcHandler<T extends { activeRuns?: unknown; recentRuns?: unknown; stationSummary?: unknown }>(coordinator: { snapshot: T | null; refresh(): Promise<T>; workflowState?: { approved: boolean }; saveWorkflowState?: () => Promise<void> }) {
+export function createRpcHandler<T extends { activeRuns?: unknown; recentRuns?: unknown; stationSummary?: unknown }>(coordinator: { snapshot: T | null; refresh(): Promise<T>; workflowState?: { approved: boolean; executionRequested?: boolean }; saveWorkflowState?: () => Promise<void>; executeVerification?: (input: { projectId?: string; targetType?: string }) => Promise<{ runId?: string }> }) {
   const workflowState = coordinator.workflowState ?? { approved: false };
   return async (method: string, payload?: { navigationId?: string; panelId?: string; actionId?: string; workflowId?: string; input?: unknown }) => {
     const snapshot = () => coordinator.snapshot ?? coordinator.refresh();
@@ -30,6 +30,17 @@ export function createRpcHandler<T extends { activeRuns?: unknown; recentRuns?: 
           workflowState.approved = true;
           await coordinator.saveWorkflowState?.();
           return { ok: true as const, result: { status: "accepted" as const, message: "Verification run approved." } };
+        }
+        if (payload?.actionId === "execute") {
+          if (!workflowState.approved) return { ok: false as const, error: "Verification workflow must be approved before execution." };
+          const input = payload.input && typeof payload.input === "object" ? payload.input as Record<string, unknown> : {};
+          const result = await coordinator.executeVerification?.({
+            ...(typeof input.projectId === "string" ? { projectId: input.projectId } : {}),
+            ...(typeof input.targetType === "string" ? { targetType: input.targetType } : {}),
+          });
+          workflowState.executionRequested = true;
+          await coordinator.saveWorkflowState?.();
+          return { ok: true as const, result: { status: "accepted" as const, message: result?.runId ? `Verification run ${result.runId} queued.` : "Verification run queued." } };
         }
         return payload?.actionId === "veritas.trigger-run"
           ? { ok: true as const, result: { status: "accepted" as const, message: "Verification run queued by Veritas." } }

@@ -3,11 +3,12 @@ import { createVeritasClient, type VeritasSnapshot } from "./veritas.ts";
 
 let snapshot = JSON.parse(process.env.T3_PLUGIN_SNAPSHOT ?? '{"stationSummary":{"online":0,"total":0},"projects":[],"activeRuns":[],"recentRuns":[]}') as VeritasSnapshot;
 const statePath = process.env.T3_PLUGIN_STATE_FILE;
-let workflowState = { approved: false };
+let workflowState = { approved: false, executionRequested: false };
 if (statePath) {
   try {
-    const stored = JSON.parse(await Bun.file(statePath).text()) as { workflowState?: { approved?: boolean } };
+    const stored = JSON.parse(await Bun.file(statePath).text()) as { workflowState?: { approved?: boolean; executionRequested?: boolean } };
     workflowState.approved = stored.workflowState?.approved === true;
+    workflowState.executionRequested = stored.workflowState?.executionRequested === true;
   } catch {
     // Missing or invalid plugin state starts from the safe unapproved state.
   }
@@ -16,7 +17,10 @@ const client = process.env.T3_PLUGIN_ENDPOINT && process.env.T3_PLUGIN_TOKEN
   ? createVeritasClient({ endpoint: process.env.T3_PLUGIN_ENDPOINT, token: process.env.T3_PLUGIN_TOKEN })
   : null;
 const refresh = async () => { if (client) snapshot = await client.snapshot(); return snapshot; };
-const handler = createRpcHandler({ get snapshot() { return snapshot; }, refresh, workflowState, saveWorkflowState: async () => {
+const handler = createRpcHandler({ get snapshot() { return snapshot; }, refresh, workflowState, executeVerification: async (input) => {
+  if (!client) return {};
+  return client.startRun(input);
+}, saveWorkflowState: async () => {
   if (statePath) await Bun.write(statePath, JSON.stringify({ workflowState }));
 } });
 let buffer = "";

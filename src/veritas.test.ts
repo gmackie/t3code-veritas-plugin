@@ -83,5 +83,12 @@ describe("Veritas adapter", () => {
     const workflow = buildReviewWorkflow({ stationSummary: { online: 2, total: 2 }, projects: [], activeRuns: [], recentRuns: [] }, { approved: true });
     expect(workflow.currentStage).toBe("execute");
     expect(workflow.steps.find((step) => step.stage === "approve")?.state).toBe("completed");
+    expect(workflow.actions?.[0]?.id).toBe("execute");
+  });
+
+  test("moves the evidence workflow to verification after execution is requested", () => {
+    const workflow = buildReviewWorkflow({ stationSummary: { online: 2, total: 2 }, projects: [], activeRuns: [], recentRuns: [] }, { approved: true, executionRequested: true });
+    expect(workflow.currentStage).toBe("verify");
+    expect(workflow.steps.find((step) => step.stage === "execute")?.state).toBe("completed");
   });
 });

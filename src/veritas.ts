@@ -21,7 +21,7 @@ export type ReviewWorkflowModel = {
   readonly actions?: readonly { id: string; title: string; tone?: "primary" | "secondary" | "destructive" }[];
 };
 
-export function buildReviewWorkflow(snapshot: VeritasSnapshot, state: { readonly approved?: boolean } = {}): ReviewWorkflowModel {
+export function buildReviewWorkflow(snapshot: VeritasSnapshot, state: { readonly approved?: boolean; readonly executionRequested?: boolean } = {}): ReviewWorkflowModel {
   const failures = snapshot.recentRuns.filter((run) => ["failed", "error", "inconclusive"].includes(run.status)).length;
   const hasEvidence = snapshot.recentRuns.some((run) => run.evidenceCount > 0);
   const checksHealthy = failures === 0 && snapshot.stationSummary.online === snapshot.stationSummary.total;
@@ -31,19 +31,19 @@ export function buildReviewWorkflow(snapshot: VeritasSnapshot, state: { readonly
     { id: "propose", stage: "propose" as const, title: "Propose verification response", state: "completed" as const },
     { id: "review", stage: "review" as const, title: "Review evidence and failures", state: state.approved ? "completed" as const : "active" as const },
     { id: "approve", stage: "approve" as const, title: "Approve verification run", state: state.approved ? "completed" as const : "pending" as const },
-    { id: "execute", stage: "execute" as const, title: "Execute verification run", state: state.approved ? "active" as const : "pending" as const },
-    { id: "verify", stage: "verify" as const, title: "Verify returned evidence", state: state.approved ? "pending" as const : checksHealthy ? "completed" as const : "active" as const, detail: `${failures} failing runs · ${snapshot.stationSummary.online}/${snapshot.stationSummary.total} stations online` },
+    { id: "execute", stage: "execute" as const, title: "Execute verification run", state: state.executionRequested ? "completed" as const : state.approved ? "active" as const : "pending" as const },
+    { id: "verify", stage: "verify" as const, title: "Verify returned evidence", state: state.executionRequested ? "active" as const : state.approved ? "pending" as const : checksHealthy ? "completed" as const : "active" as const, detail: `${failures} failing runs · ${snapshot.stationSummary.online}/${snapshot.stationSummary.total} stations online` },
     { id: "respond", stage: "respond" as const, title: "Prepare verification response", state: "pending" as const },
   ];
   return {
     pluginId: "com.t3code.veritas",
     workflowId: "veritas.evidence-review",
     title: "Evidence review",
-    currentStage: state.approved ? "execute" : failures > 0 || !checksHealthy ? "review" : "approve",
+    currentStage: state.executionRequested ? "verify" : state.approved ? "execute" : failures > 0 || !checksHealthy ? "review" : "approve",
     refreshedAt: new Date().toISOString(),
     steps,
     evidence: [{ id: "verification-health", title: "Verification health", kind: "check", status: checksHealthy && hasEvidence ? "positive" : failures > 0 ? "negative" : "warning", detail: `${snapshot.recentRuns.length} recent runs with ${snapshot.recentRuns.reduce((total, run) => total + run.evidenceCount, 0)} evidence records` }],
-    actions: state.approved ? [] : [{ id: "approve", title: "Approve verification run", tone: "primary" }],
+    actions: state.executionRequested ? [] : state.approved ? [{ id: "execute", title: "Execute verification run", tone: "primary" }] : [{ id: "approve", title: "Approve verification run", tone: "primary" }],
   };
 }
 
@@ -91,7 +91,14 @@ export function buildSurfaceModel(snapshot: VeritasSnapshot, navigationId = "ver
 }
 export function createVeritasClient(input: { endpoint: string; token: string; fetchImpl?: FetchLike }) {
   const transport = { ...input, fetchImpl: input.fetchImpl ?? fetch };
-  return { async snapshot() { return normalizeVeritasSnapshot({ ...(await get(transport, "/api/cli/status")), ...(await get(transport, "/api/cli/runs?limit=20")) }); } };
+  return {
+    async snapshot() { return normalizeVeritasSnapshot({ ...(await get(transport, "/api/cli/status")), ...(await get(transport, "/api/cli/runs?limit=20")) }); },
+    async startRun(runInput: { projectId?: string; targetType?: string }) {
+      const response = await transport.fetchImpl(`${transport.endpoint.replace(/\/$/u, "")}/api/cli/runs`, { method: "POST", headers: { authorization: `Bearer ${transport.token}`, "content-type": "application/json" }, body: JSON.stringify(runInput) });
+      if (!response.ok) throw new Error(`Veritas POST /api/cli/runs failed: ${response.status}`);
+      return response.json() as Promise<{ runId?: string }>;
+    },
+  };
 }
 export function normalizePollingSeconds(value: number | undefined): number { return Math.min(3600, Math.max(15, Math.floor(value ?? 60))); }
 export function createPollingCoordinator<T>(input: { refresh: () => Promise<T>; intervalSeconds?: number; onError?: (error: unknown) => void }) { let cached: T | null = null; let timer: ReturnType<typeof setTimeout> | undefined; let active = false; const interval = normalizePollingSeconds(input.intervalSeconds) * 1000; const tick = async () => { if (!active) return; try { cached = await input.refresh(); } catch (error) { input.onError?.(error); } finally { if (active) timer = setTimeout(tick, interval); } }; return { get snapshot() { return cached; }, async refresh() { cached = await input.refresh(); return cached; }, start() { active = true; void tick(); }, stop() { active = false; if (timer) clearTimeout(timer); } }; }

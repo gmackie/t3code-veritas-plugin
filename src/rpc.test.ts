@@ -33,4 +33,20 @@ describe("Veritas cockpit RPC", () => {
     expect(saved).toBe(true);
     await expect(handler("workflow.get", { workflowId: "veritas.evidence-review" })).resolves.toMatchObject({ ok: true, result: { currentStage: "execute" } });
   });
+
+  test("executes the approved workflow through the Veritas client callback", async () => {
+    let executed = false;
+    let saved = false;
+    const handler = createRpcHandler({
+      snapshot: { projects: [], activeRuns: [], recentRuns: [], stationSummary: { online: 1, total: 1 } },
+      refresh: async () => ({ projects: [], activeRuns: [], recentRuns: [], stationSummary: { online: 1, total: 1 } }),
+      workflowState: { approved: true, executionRequested: false },
+      saveWorkflowState: async () => { saved = true; },
+      executeVerification: async (input) => { executed = input.projectId === "p1"; return { runId: "run-1" }; },
+    });
+    await expect(handler("action.execute", { actionId: "execute", input: { workflowId: "veritas.evidence-review", projectId: "p1" } })).resolves.toMatchObject({ ok: true, result: { status: "accepted" } });
+    expect(executed).toBe(true);
+    expect(saved).toBe(true);
+    await expect(handler("workflow.get", { workflowId: "veritas.evidence-review" })).resolves.toMatchObject({ ok: true, result: { currentStage: "verify" } });
+  });
 });
