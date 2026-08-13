@@ -3,7 +3,7 @@
   "id": "com.t3code.veritas",
   "displayName": "Veritas verification cockpit",
   "version": "0.2.0",
-  "runtime": { "kind": "managed-app", "command": ["veritas-t3-plugin"], "restart": "on-failure" },
+  "runtime": { "kind": "managed-app", "command":["bun","src/stdio.ts"], "restart": "on-failure" },
   "contributes": {
     "navigation": [
       { "id": "veritas.overview", "title": "Overview", "path": "/" },
