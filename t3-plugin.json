@@ -1,47 +1,78 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "com.t3code.veritas",
   "displayName": "Veritas verification cockpit",
-  "version": "0.2.0",
-  "runtime": { "kind": "managed-app", "command":["bun","src/stdio.ts"], "restart": "on-failure" },
+  "version": "0.3.0",
+  "description": "Veritas verification runs, stations, suites, failures and firmware provenance, with a human-approved evidence review for starting runs.",
+  "mcpServer": {
+    "name": "veritas",
+    "transport": {
+      "type": "stdio",
+      "command": "bun",
+      "args": [
+        "${pluginRoot}/src/mcp.ts"
+      ],
+      "env": [
+        {
+          "name": "VERITAS_URL",
+          "value": "https://veritas.forgegraf.com",
+          "title": "Veritas endpoint"
+        },
+        {
+          "name": "VERITAS_TOKEN",
+          "value": "",
+          "sensitive": true,
+          "title": "Veritas token",
+          "description": "Veritas CLI token (vrt_…). Reading needs runs:read and config:read; starting runs needs runs:trigger."
+        },
+        {
+          "name": "VERITAS_DEFAULT_SUITE_ID",
+          "value": "",
+          "title": "Default verification suite",
+          "description": "Optional suite id that filters runs and prefills the evidence review."
+        },
+        {
+          "name": "VERITAS_POLL_SECONDS",
+          "value": "60",
+          "title": "Refresh interval in seconds (15-3600)"
+        }
+      ]
+    }
+  },
   "contributes": {
-    "navigation": [
-      { "id": "veritas.overview", "title": "Overview", "path": "/" },
-      { "id": "veritas.runs", "title": "Runs", "path": "/runs" },
-      { "id": "veritas.suites", "title": "Suites", "path": "/suites" },
-      { "id": "veritas.targets", "title": "Targets", "path": "/targets" },
-      { "id": "veritas.evidence", "title": "Evidence", "path": "/evidence" },
-      { "id": "veritas.failures", "title": "Failures", "path": "/failures" },
-      { "id": "veritas.provenance", "title": "Provenance", "path": "/provenance" }
+    "panels": [
+      {
+        "id": "veritas-cockpit",
+        "title": "Verification summary",
+        "scope": "project",
+        "resourceUri": "ui://veritas/cockpit.html",
+        "tool": { "name": "veritas_cockpit", "arguments": {} }
+      },
+      {
+        "id": "veritas-thread",
+        "title": "Thread verification",
+        "scope": "thread",
+        "resourceUri": "ui://veritas/evidence-review.html",
+        "tool": { "name": "veritas_evidence_review", "arguments": {} }
+      }
     ],
     "commands": [
-      { "id": "veritas.refresh", "title": "Refresh verification status" },
-      { "id": "veritas.open-run", "title": "Open verification run" },
-      { "id": "veritas.trigger-run", "title": "Start verification run" }
-    ],
-    "panels": [
-      { "id": "veritas.project-summary", "title": "Verification summary", "surface": "project" },
-      { "id": "veritas.thread-run", "title": "Thread verification", "surface": "thread.sidePanel" }
-    ],
-    "workflows": [{ "id": "veritas.evidence-review", "title": "Evidence review", "surface": "thread.main" }],
-    "settings": [
-      { "id": "veritas.endpoint", "title": "Veritas endpoint", "scope": "server", "field": { "kind": "text", "default": "https://veritas.forgegraf.com" } },
-      { "id": "veritas.token", "title": "Veritas token", "scope": "server", "field": { "kind": "text", "secret": true } },
-      { "id": "veritas.project", "title": "Default verification project", "scope": "project", "field": { "kind": "text", "placeholder": "project id" } },
-      { "id": "veritas.polling-seconds", "title": "Refresh interval", "scope": "server", "field": { "kind": "number", "default": 60, "min": 15, "max": 3600, "step": 15 } },
-      { "id": "veritas.auto-link", "title": "Automatically link runs to threads", "scope": "server", "field": { "kind": "boolean", "default": true } }
-    ],
-    "settingsPanels": [
-      { "id": "veritas.connection", "title": "Veritas", "description": "Configure verification projects, targets, polling, and thread linking.", "settingIds": ["veritas.endpoint", "veritas.token", "veritas.project", "veritas.polling-seconds", "veritas.auto-link"] }
-    ],
-    "hooks": ["turn.settled", "thread.completed", "runtime.error"]
+      {
+        "id": "veritas-refresh",
+        "title": "Veritas: Refresh verification status",
+        "panel": "veritas-cockpit"
+      },
+      {
+        "id": "veritas-open-run",
+        "title": "Veritas: Open verification runs",
+        "panel": "veritas-cockpit"
+      },
+      {
+        "id": "veritas-trigger-run",
+        "title": "Veritas: Start verification run",
+        "panel": "veritas-thread"
+      }
+    ]
   },
-  "capabilities": [
-    { "kind": "secrets.read", "names": ["VERITAS_TOKEN"] },
-    { "kind": "network.connect", "hosts": ["veritas.forgegraf.com"] },
-    { "kind": "filesystem.read", "roots": ["project.root"] },
-    { "kind": "ui.embed", "surfaces": ["project", "thread.sidePanel", "thread.main"] },
-    { "kind": "threads.read", "projectIds": [] },
-    { "kind": "events.read", "eventTypes": ["turn.settled", "thread.completed", "runtime.error"], "projectIds": [] }
-  ]
+  "t3Tools": []
 }

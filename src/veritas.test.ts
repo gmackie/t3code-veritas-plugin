@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildCockpitViewModel, buildReviewWorkflow, buildSurfaceModel, createPollingCoordinator, createVeritasClient, normalizeVeritasSnapshot } from "./veritas.ts";
+import { buildCockpitViewModel, buildReviewWorkflow, buildSurfaceModel, createVeritasClient, normalizeFamilies, normalizePollingSeconds, normalizeVeritasSnapshot } from "./veritas.ts";
 
 describe("Veritas adapter", () => {
   test("normalizes CLI status and runs", () => {
@@ -12,19 +12,23 @@ describe("Veritas adapter", () => {
   });
 
   test("reads status and recent runs from the Veritas CLI API", async () => {
-    const paths: string[] = [];
-    const client = createVeritasClient({ endpoint: "https://veritas.example", token: "secret", fetchImpl: async (input) => {
-      paths.push(new URL(String(input)).pathname);
-      return new Response(JSON.stringify(paths.at(-1) === "/api/cli/status" ? { activeRuns: [] } : { runs: [] }), { status: 200 });
+    const seen: { path: string; auth: string | null }[] = [];
+    const client = createVeritasClient({ endpoint: "https://veritas.example/", token: "secret", fetchImpl: async (input, init) => {
+      const url = new URL(input);
+      seen.push({ path: `${url.pathname}${url.search}`, auth: new Headers(init?.headers).get("authorization") });
+      return new Response(JSON.stringify(url.pathname === "/api/cli/status" ? { activeRuns: [], families: [{ id: "f1", name: "Sensor", healthStatus: "healthy" }] } : { runs: [] }), { status: 200 });
     } });
-    await client.snapshot();
-    expect(paths).toEqual(["/api/cli/status", "/api/cli/runs"]);
+    const { families } = await client.snapshot({ suiteId: "s1", limit: 5 });
+    expect(seen.map((entry) => entry.path).sort()).toEqual(["/api/cli/runs?suiteId=s1&limit=5", "/api/cli/status"]);
+    expect(seen.every((entry) => entry.auth === "Bearer secret")).toBe(true);
+    expect(families).toEqual([{ id: "f1", name: "Sensor", health: "healthy" }]);
   });
 
-  test("caches the latest verification refresh", async () => {
-    const coordinator = createPollingCoordinator({ refresh: async () => ({ activeRuns: [], recentRuns: [] }) });
-    await coordinator.refresh();
-    expect(coordinator.snapshot).toEqual({ activeRuns: [], recentRuns: [] });
+  test("clamps the refresh interval like the v1 setting", () => {
+    expect(normalizePollingSeconds(undefined)).toBe(60);
+    expect(normalizePollingSeconds(1)).toBe(15);
+    expect(normalizePollingSeconds(99999)).toBe(3600);
+    expect(normalizeFamilies(null)).toEqual([]);
   });
 
   test("normalizes the full cockpit summary across software and physical targets", () => {
@@ -37,7 +41,7 @@ describe("Veritas adapter", () => {
       stationSummary: { online: 2, total: 3 },
       projects: [{ id: "p1", name: "Firmware" }],
       activeRuns: [{ id: "r1", status: "running", targetType: "hardware-rig", stationName: "Bench A", evidenceCount: 0 }],
-      recentRuns: [{ id: "r0", status: "passed", targetType: "simulator", stationName: null, evidenceCount: 1 }],
+      recentRuns: [{ id: "r0", status: "passed", targetType: "simulator", stationName: null, evidenceCount: 1, suiteName: "Smoke" }],
     });
   });
 

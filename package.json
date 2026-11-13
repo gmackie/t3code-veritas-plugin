@@ -1,1 +1,26 @@
-{"name":"@t3code/veritas-plugin","version":"0.1.0","private":true,"type":"module","scripts":{"test":"bun test","typecheck":"bunx tsc --noEmit","start":"bun src/stdio.ts"},"devDependencies":{"@types/bun":"1.3.14","typescript":"^5.8.3"}}
+{
+  "name": "@t3code/veritas-plugin",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "bunx tsc --noEmit",
+    "mcp": "bun src/mcp.ts",
+    "inspect": "bunx @modelcontextprotocol/inspector@2.13.0 -e VERITAS_URL=${VERITAS_URL:-https://veritas.forgegraf.com} -- bun src/mcp.ts"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.4.0",
+    "@types/bun": "1.3.14",
+    "happy-dom": "^21.0.4",
+    "typescript": "7.0.2"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "^2.0.4",
+    "@modelcontextprotocol/server": "^2.4.0",
+    "zod": "^4.6.7"
+  },
+  "bin": {
+    "veritas-t3-plugin-mcp": "src/mcp.ts"
+  }
+}
