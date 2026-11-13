@@ -82,4 +82,5 @@ v1's `startRun` posted `{ projectId, targetType }` to `POST /api/cli/runs`. That
 
 1. **Run detail and artifacts.** `GET /api/runs/{id}` only accepts station tokens. `veritas_run_get` therefore searches the 200 most recent runs. Per-test results and evidence artifacts need a CLI route in Veritas first.
 2. **Station and device discovery.** The CLI API has no station or device listing. The review offers the station/device pairs from recent runs of the suite, plus free entry.
-3. **Software/hardware split.** The CLI runs route does not return `targetType`. Runs without one count as software in the Targets tab.
+3. **Evidence counts.** No `/api/cli` route returns run evidence or artifacts, so the cockpit has no evidence-count metric and the review's Verification health item says evidence records are unavailable. Its status reflects failing runs and station availability only. Add counts back once Veritas has an evidence CLI route.
+4. **Software/hardware split.** The CLI runs route does not return `targetType`. Runs without one count as software in the Targets tab.

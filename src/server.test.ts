@@ -91,6 +91,14 @@ describe("Veritas MCP server", () => {
     expect(verify.content[0]?.text).toContain("Started run run-new-1 is running.");
   });
 
+  it("refuses to follow a run it cannot find instead of showing it as queued", async () => {
+    const { client } = await connect();
+    const result = await call<ReviewData>(client, "veritas_evidence_review", { suiteId: "s1", startedRunId: "does-not-exist" });
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toBeUndefined();
+    expect(result.content[0]?.text).toBe("Run does-not-exist not found among the 50 most recent runs of suite s1. Check the id, or look it up with veritas_run_get.");
+  });
+
   it("passes Veritas validation errors through without claiming success", async () => {
     const { client, fake } = await connect();
     const result = await call(client, "veritas_run_start", { suiteId: "s1", stationId: "st1", deviceId: " " });

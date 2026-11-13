@@ -7,7 +7,6 @@ export type VeritasRun = {
   status: string;
   targetType: string | null;
   stationName: string | null;
-  evidenceCount: number;
   suiteId?: string;
   suiteName?: string;
   stationId?: string;
@@ -23,7 +22,7 @@ export type VeritasFamily = { id: string; name: string; slug?: string; activeFir
 export type VeritasSuite = { id: string; name: string; description?: string; model?: string; totalRuns: number; lastRunAt?: string };
 export type CockpitViewModel = {
   navigation: readonly { id: string; title: string }[];
-  overview: { activeRuns: number; recentFailures: number; stationsOnline: number; stationsTotal: number; evidenceFresh: number };
+  overview: { activeRuns: number; recentFailures: number; stationsOnline: number; stationsTotal: number };
   targetTabs: readonly { id: "software" | "hardware"; title: string; runCount: number }[];
 };
 export type SurfaceCard =
@@ -46,7 +45,6 @@ export const isFailing = (run: Pick<VeritasRun, "status">) => FAILING_STATUSES.i
 
 export function buildReviewWorkflow(snapshot: VeritasSnapshot, state: { readonly approved?: boolean; readonly executionRequested?: boolean } = {}): ReviewWorkflowModel {
   const failures = snapshot.recentRuns.filter(isFailing).length;
-  const hasEvidence = snapshot.recentRuns.some((run) => run.evidenceCount > 0);
   const checksHealthy = failures === 0 && snapshot.stationSummary.online === snapshot.stationSummary.total;
   const steps = [
     { id: "inspect", stage: "inspect" as const, title: "Inspect verification state", state: "completed" as const },
@@ -65,7 +63,7 @@ export function buildReviewWorkflow(snapshot: VeritasSnapshot, state: { readonly
     currentStage: state.executionRequested ? "verify" : state.approved ? "execute" : failures > 0 || !checksHealthy ? "review" : "approve",
     refreshedAt: new Date().toISOString(),
     steps,
-    evidence: [{ id: "verification-health", title: "Verification health", kind: "check", status: checksHealthy && hasEvidence ? "positive" : failures > 0 ? "negative" : "warning", detail: `${snapshot.recentRuns.length} recent runs with ${snapshot.recentRuns.reduce((total, run) => total + run.evidenceCount, 0)} evidence records` }],
+    evidence: [{ id: "verification-health", title: "Verification health", kind: "check", status: checksHealthy ? "positive" : failures > 0 ? "negative" : "warning", detail: `${failures} failing of ${snapshot.recentRuns.length} recent runs · evidence records unavailable (no Veritas CLI route yet)` }],
     actions: state.executionRequested ? [] : state.approved ? [{ id: "execute", title: "Execute verification run", tone: "primary" }] : [{ id: "approve", title: "Approve verification run", tone: "primary" }],
   };
 }
@@ -86,7 +84,6 @@ function runs(value: unknown): VeritasRun[] {
         status: runStatus(run.status),
         targetType: typeof run.targetType === "string" ? run.targetType : null,
         stationName: typeof run.stationName === "string" ? run.stationName : null,
-        evidenceCount: Array.isArray(run.evidence) ? run.evidence.length : 0,
         ...opt("suiteId", run.testSuiteId),
         ...opt("suiteName", run.suiteName),
         ...opt("stationId", run.stationId ?? run.testStationId),
@@ -137,7 +134,6 @@ export function buildCockpitViewModel(snapshot: VeritasSnapshot): CockpitViewMod
       recentFailures: snapshot.recentRuns.filter(isFailing).length,
       stationsOnline: snapshot.stationSummary.online,
       stationsTotal: snapshot.stationSummary.total,
-      evidenceFresh: snapshot.recentRuns.reduce((total, run) => total + run.evidenceCount, 0),
     },
     targetTabs: [
       { id: "software", title: "Software", runCount: softwareRuns },
@@ -155,7 +151,6 @@ export function buildSurfaceModel(snapshot: VeritasSnapshot, navigationId = "ver
     cards: [
       { kind: "metric", id: "active-runs", title: "Active runs", value: `${view.overview.activeRuns}`, status: view.overview.activeRuns === 0 ? "positive" : "warning" },
       { kind: "metric", id: "stations", title: "Stations online", value: `${view.overview.stationsOnline}/${view.overview.stationsTotal}`, status: view.overview.stationsOnline === view.overview.stationsTotal ? "positive" : "warning" },
-      { kind: "metric", id: "evidence", title: "Recent evidence", value: `${view.overview.evidenceFresh}` },
       { kind: "list", id: "runs", title: "Recent verification runs", items: [...snapshot.activeRuns, ...snapshot.recentRuns].slice(0, 10).map((run) => ({ id: run.id, title: run.suiteName ?? run.id, detail: [run.status, run.targetType ?? "target unknown", run.stationName ?? "station unknown"].join(" · "), status: isFailing(run) ? "negative" as const : run.status === "passed" ? "positive" as const : "warning" as const })) },
     ],
   };

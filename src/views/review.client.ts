@@ -20,8 +20,9 @@ function draw() {
   const workflow = buildReviewWorkflow(data.snapshot, { approved: approved || Boolean(data.startedRun), executionRequested: Boolean(data.startedRun) });
   root.innerHTML = renderReview(data, workflow, { busy, ...(error ? { error } : {}), target });
   clearTimeout(timer);
-  // Keep checking a started run until Veritas reports a terminal status.
-  if (data.startedRun && !data.settled) timer = setTimeout(() => void refresh(), data.pollSeconds * 1000);
+  // Keep checking a started run until Veritas reports a terminal status. A
+  // failed check (run not found, Veritas down) stops polling; Refresh retries.
+  if (data.startedRun && !data.settled && !error && !busy) timer = setTimeout(() => void refresh(), data.pollSeconds * 1000);
 }
 
 async function run(task: () => Promise<void>) {

@@ -6,8 +6,8 @@ describe("Veritas adapter", () => {
     expect(normalizeVeritasSnapshot({ activeRuns: [{ id: "r1", status: "running" }], runs: [{ id: "r0", status: "passed" }] })).toEqual({
       stationSummary: { online: 0, total: 0 },
       projects: [],
-      activeRuns: [{ id: "r1", status: "running", targetType: null, stationName: null, evidenceCount: 0 }],
-      recentRuns: [{ id: "r0", status: "passed", targetType: null, stationName: null, evidenceCount: 0 }],
+      activeRuns: [{ id: "r1", status: "running", targetType: null, stationName: null }],
+      recentRuns: [{ id: "r0", status: "passed", targetType: null, stationName: null }],
     });
   });
 
@@ -40,8 +40,8 @@ describe("Veritas adapter", () => {
     })).toEqual({
       stationSummary: { online: 2, total: 3 },
       projects: [{ id: "p1", name: "Firmware" }],
-      activeRuns: [{ id: "r1", status: "running", targetType: "hardware-rig", stationName: "Bench A", evidenceCount: 0 }],
-      recentRuns: [{ id: "r0", status: "passed", targetType: "simulator", stationName: null, evidenceCount: 1, suiteName: "Smoke" }],
+      activeRuns: [{ id: "r1", status: "running", targetType: "hardware-rig", stationName: "Bench A" }],
+      recentRuns: [{ id: "r0", status: "passed", targetType: "simulator", stationName: null, suiteName: "Smoke" }],
     });
   });
 
@@ -49,11 +49,11 @@ describe("Veritas adapter", () => {
     const view = buildCockpitViewModel({
       stationSummary: { online: 2, total: 3 },
       projects: [{ id: "p1", name: "Firmware" }],
-      activeRuns: [{ id: "r1", status: "running", targetType: "hardware-rig", stationName: "Bench A", evidenceCount: 0 }],
-      recentRuns: [{ id: "r0", status: "passed", targetType: "simulator", stationName: null, evidenceCount: 2 }],
+      activeRuns: [{ id: "r1", status: "running", targetType: "hardware-rig", stationName: "Bench A" }],
+      recentRuns: [{ id: "r0", status: "passed", targetType: "simulator", stationName: null }],
     });
     expect(view.navigation.map((item) => item.id)).toEqual(["overview", "runs", "suites", "targets", "evidence", "failures", "provenance"]);
-    expect(view.overview).toEqual({ activeRuns: 1, recentFailures: 0, stationsOnline: 2, stationsTotal: 3, evidenceFresh: 2 });
+    expect(view.overview).toEqual({ activeRuns: 1, recentFailures: 0, stationsOnline: 2, stationsTotal: 3 });
     expect(view.targetTabs).toEqual([{ id: "software", title: "Software", runCount: 1 }, { id: "hardware", title: "Hardware", runCount: 1 }]);
   });
 
@@ -61,8 +61,8 @@ describe("Veritas adapter", () => {
     const surface = buildSurfaceModel({
       stationSummary: { online: 2, total: 3 },
       projects: [],
-      activeRuns: [{ id: "r1", status: "running", targetType: "hardware-rig", stationName: "Bench A", evidenceCount: 0 }],
-      recentRuns: [{ id: "r0", status: "passed", targetType: "simulator", stationName: null, evidenceCount: 2 }],
+      activeRuns: [{ id: "r1", status: "running", targetType: "hardware-rig", stationName: "Bench A" }],
+      recentRuns: [{ id: "r0", status: "passed", targetType: "simulator", stationName: null }],
     });
     expect(surface.pluginId).toBe("com.t3code.veritas");
     expect(surface.cards).toEqual(expect.arrayContaining([
@@ -76,11 +76,16 @@ describe("Veritas adapter", () => {
       stationSummary: { online: 1, total: 2 },
       projects: [],
       activeRuns: [],
-      recentRuns: [{ id: "r1", status: "failed", targetType: "simulator", stationName: null, evidenceCount: 3 }],
+      recentRuns: [{ id: "r1", status: "failed", targetType: "simulator", stationName: null }],
     });
     expect(workflow.currentStage).toBe("review");
     expect(workflow.steps.find((step) => step.stage === "review")?.state).toBe("active");
     expect(workflow.evidence?.[0]?.status).toBe("negative");
+  });
+
+  test("reports verification health without inventing evidence counts", () => {
+    const workflow = buildReviewWorkflow({ stationSummary: { online: 2, total: 2 }, projects: [], activeRuns: [], recentRuns: [{ id: "r0", status: "passed", targetType: null, stationName: null }] });
+    expect(workflow.evidence?.[0]).toMatchObject({ status: "positive", detail: "0 failing of 1 recent runs · evidence records unavailable (no Veritas CLI route yet)" });
   });
 
   test("moves the evidence workflow to execution after approval", () => {

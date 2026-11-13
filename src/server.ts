@@ -18,6 +18,7 @@ export type VeritasServerOptions = {
 export const MISSING_TOKEN =
   "Veritas is not configured: set VERITAS_TOKEN (a Veritas CLI token, vrt_…) in the plugin's server variables under Settings → Tools → veritas.";
 
+const REVIEW_RUN_WINDOW = 50;
 const TERMINAL = new Set(["passed", "failed", "error", "inconclusive", "cancelled", "skipped"]);
 const id = (label: string) => z.string().trim().min(1).describe(label);
 
@@ -137,9 +138,12 @@ export function createVeritasMcpServer(options: VeritasServerOptions): McpServer
     async ({ suiteId, startedRunId }) =>
       result(async () => {
         const suite = suiteId ?? options.defaultSuiteId;
-        const { snapshot } = await client().snapshot({ ...(suite ? { suiteId: suite } : {}), limit: 50 });
+        const { snapshot } = await client().snapshot({ ...(suite ? { suiteId: suite } : {}), limit: REVIEW_RUN_WINDOW });
         const all = [...snapshot.activeRuns, ...snapshot.recentRuns];
-        const startedRun = startedRunId ? (all.find((run) => run.id === startedRunId) ?? { id: startedRunId, status: "pending", targetType: null, stationName: null, evidenceCount: 0 }) : undefined;
+        const startedRun = startedRunId ? all.find((run) => run.id === startedRunId) : undefined;
+        // Never invent a run: a wrong id, another suite's run, or one older than
+        // this window must not show as approved and queued.
+        if (startedRunId && !startedRun) throw new Error(`Run ${startedRunId} not found among the ${REVIEW_RUN_WINDOW} most recent runs${suite ? ` of suite ${suite}` : ""}. Check the id, or look it up with veritas_run_get.`);
         const settled = startedRun ? TERMINAL.has(startedRun.status) : false;
         const workflow = buildReviewWorkflow(snapshot, startedRun ? { approved: true, executionRequested: true } : {});
         const data: ReviewData = {

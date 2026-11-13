@@ -6,10 +6,10 @@ import { renderCockpit, renderReview, rerunTargets, type CockpitData, type Revie
 const snapshot: VeritasSnapshot = {
   stationSummary: { online: 1, total: 2 },
   projects: [],
-  activeRuns: [{ id: "r-active", status: "running", targetType: null, stationName: "Bench A", evidenceCount: 0, suiteId: "s1", stationId: "st1", deviceId: "d1" }],
+  activeRuns: [{ id: "r-active", status: "running", targetType: null, stationName: "Bench A", suiteId: "s1", stationId: "st1", deviceId: "d1" }],
   recentRuns: [
-    { id: "r-fail", status: "failed", targetType: null, stationName: "Bench <B>", evidenceCount: 0, suiteName: "Smoke <script>alert(1)</script>", completedAt: "2026-11-12T10:00:00Z" },
-    { id: "r-pass", status: "passed", targetType: null, stationName: null, evidenceCount: 0 },
+    { id: "r-fail", status: "failed", targetType: null, stationName: "Bench <B>", suiteName: "Smoke <script>alert(1)</script>", completedAt: "2026-11-12T10:00:00Z" },
+    { id: "r-pass", status: "passed", targetType: null, stationName: null },
   ],
 };
 
@@ -54,7 +54,7 @@ describe("view renderers", () => {
     expect(execute).toContain('value="st&lt;1&gt;"');
     expect(execute).toContain('role="alert">Veritas down');
 
-    const verify = renderReview({ ...data, startedRun: { id: "r-new", status: "pending", targetType: null, stationName: null, evidenceCount: 0 }, settled: false }, buildReviewWorkflow(snapshot, { approved: true, executionRequested: true }));
+    const verify = renderReview({ ...data, startedRun: { id: "r-new", status: "pending", targetType: null, stationName: null }, settled: false }, buildReviewWorkflow(snapshot, { approved: true, executionRequested: true }));
     expect(verify).not.toContain('class="actions"');
     expect(verify).toContain("checking every 30s");
   });
