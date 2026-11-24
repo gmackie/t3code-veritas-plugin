@@ -1,6 +1,6 @@
 # T3 Code Veritas plugin
 
-Install this directory in T3 Code and sign in to Veritas from **Settings → Tools**. Select the workspace you want the account to inspect. The remote MCP endpoint is `https://veritas.forgegraf.com/api/mcp`.
+Install this directory in T3 Code and sign in to Veritas from **Settings → Tools**. The consent page shows the Default Organization and the read permissions used by the panels. The remote MCP endpoint is `https://veritas.forgegraf.com/api/mcp`.
 
 The project cockpit opens `veritas_cockpit`. The thread panel opens `veritas_evidence_review`. Both use `runs:read`. `config:read` supplies suite details, `stations:read` supplies station availability, and `firmware:read` supplies firmware provenance. Use the Veritas dashboard or the operator server below when you need to start a run.
 
