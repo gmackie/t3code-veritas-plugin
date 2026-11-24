@@ -1,10 +1,10 @@
 # T3 Code Veritas plugin
 
-The Veritas verification cockpit for T3 Code. It reads the Veritas CLI API for runs, station availability, suites, failures and device-family firmware provenance. It also lets a human approve and start a verification run from an evidence review.
+Install this directory in T3 Code and sign in to Veritas from **Settings → Tools**. Select the workspace you want the account to inspect. The remote MCP endpoint is `https://veritas.forgegraf.com/api/mcp`.
 
-The plugin is an MCP server (`src/mcp.ts`, stdio) described by a v2 manifest (`t3-plugin.json`). Version 0.3.0 removed the managed-app runtime and plugin RPC. T3 builds that only load v1 manifests cannot load this version.
+The project cockpit opens `veritas_cockpit`. The thread panel opens `veritas_evidence_review`. Both use `runs:read`. `config:read` supplies suite details, `stations:read` supplies station availability, and `firmware:read` supplies firmware provenance. Use the Veritas dashboard or the operator server below when you need to start a run.
 
-## MCP server
+## Standalone operator server
 
 The server is built on the official MCP TypeScript SDK v2 (`@modelcontextprotocol/server`). Views are MCP Apps: self-contained `ui://` HTML resources.
 
@@ -41,6 +41,4 @@ bun run typecheck
 VERITAS_TOKEN=vrt_… bun run inspect   # MCP Inspector (Apps tab)
 ```
 
-To use it, install this directory through T3's plugin installer after running `bun install --frozen-lockfile`, then set the token on the connected server. Web, desktop and mobile can open its panels.
-
-See `docs/manifest-v2.md` for the v1 → v2 mapping, the v1 features that were removed and why, and the Veritas routes the plugin calls.
+The operator server uses the CLI token configured above. The hosted MCP plugin signs in through T3.
