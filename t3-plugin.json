@@ -2,41 +2,23 @@
   "schemaVersion": 2,
   "id": "com.t3code.veritas",
   "displayName": "Veritas verification cockpit",
-  "version": "0.3.0",
-  "description": "Veritas verification runs, stations, suites, failures and firmware provenance, with a human-approved evidence review for starting runs.",
+  "version": "0.4.0",
+  "description": "Review workspace verification runs, suites, station availability, and firmware provenance through Veritas OAuth.",
   "mcpServer": {
     "name": "veritas",
     "transport": {
-      "type": "stdio",
-      "command": "bun",
-      "args": [
-        "${pluginRoot}/src/mcp.ts"
-      ],
-      "env": [
-        {
-          "name": "VERITAS_URL",
-          "value": "https://veritas.forgegraf.com",
-          "title": "Veritas endpoint"
-        },
-        {
-          "name": "VERITAS_TOKEN",
-          "value": "",
-          "sensitive": true,
-          "title": "Veritas token",
-          "description": "Veritas CLI token (vrt_…). Reading needs runs:read and config:read; starting runs needs runs:trigger."
-        },
-        {
-          "name": "VERITAS_DEFAULT_SUITE_ID",
-          "value": "",
-          "title": "Default verification suite",
-          "description": "Optional suite id that filters runs and prefills the evidence review."
-        },
-        {
-          "name": "VERITAS_POLL_SECONDS",
-          "value": "60",
-          "title": "Refresh interval in seconds (15-3600)"
-        }
-      ]
+      "type": "http",
+      "url": "https://veritas.forgegraf.com/api/mcp",
+      "headers": [],
+      "auth": {
+        "type": "oauth",
+        "scopes": [
+          "config:read",
+          "runs:read",
+          "stations:read",
+          "firmware:read"
+        ]
+      }
     }
   },
   "contributes": {
@@ -46,14 +28,20 @@
         "title": "Verification summary",
         "scope": "project",
         "resourceUri": "ui://veritas/cockpit.html",
-        "tool": { "name": "veritas_cockpit", "arguments": {} }
+        "tool": {
+          "name": "veritas_cockpit",
+          "arguments": {}
+        }
       },
       {
         "id": "veritas-thread",
         "title": "Thread verification",
         "scope": "thread",
         "resourceUri": "ui://veritas/evidence-review.html",
-        "tool": { "name": "veritas_evidence_review", "arguments": {} }
+        "tool": {
+          "name": "veritas_evidence_review",
+          "arguments": {}
+        }
       }
     ],
     "commands": [
@@ -68,8 +56,8 @@
         "panel": "veritas-cockpit"
       },
       {
-        "id": "veritas-trigger-run",
-        "title": "Veritas: Start verification run",
+        "id": "veritas-open-evidence",
+        "title": "Veritas: Review verification evidence",
         "panel": "veritas-thread"
       }
     ]
